@@ -1,0 +1,33 @@
+library(shiny)
+library(leaflet)
+
+r_colors <- rgb(t(col2rgb(colors()) / 255))
+names(r_colors) <- colors()
+
+ui <- fluidPage(
+  leafletOutput("mymap"),
+  p(),
+  actionButton("recalc", "New points")
+)
+
+server <- function(input, output, session) {
+  
+  # initialize our leaflet map into a reactive value
+  rv <- reactiveValues(lmap=leaflet() %>% addProviderTiles(providers$Stamen.TonerLite,
+                                                           options = providerTileOptions(noWrap = TRUE))
+                       
+                       points <- eventReactive(input$recalc, {
+                         cbind(rnorm(40) * 2 + 13, rnorm(40) + 48)
+                         
+                         # now modify our leaflet map with our new points
+                         # note we could do anything with our map, we have access to all its columns
+                         rv$lmap <- addMarkers(rv$lmap,data=points())
+                       }, ignoreNULL = FALSE)
+                       
+                       output$mymap <- renderLeaflet({
+                         # reactively render the map when it changes
+                         rv$lmap
+                       })
+}
+
+shinyApp(ui, server)

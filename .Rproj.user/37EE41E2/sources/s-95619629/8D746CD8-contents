@@ -1,0 +1,5 @@
+m <- leaflet() %>%
+  addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
+  setView(lng =122.5, lat = 12.5, zoom = 5)%>%
+  addPolygons(data = ph_geom, weight=1)
+m

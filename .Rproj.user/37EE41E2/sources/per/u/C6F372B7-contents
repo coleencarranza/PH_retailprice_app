@@ -1,0 +1,194 @@
+library(shiny)
+library(ggplot2)
+library(scales)
+library(DT)
+library(dplyr)
+library(leaflet)
+library(sf)
+library(magrittr)
+library(geojsonio)
+library(htmltools)
+library(htmlwidgets)
+library(stringi)
+library(RColorBrewer)
+
+
+ui <- navbarPage(
+  title = "Commodity Retail Prices Pilipinas",
+  collapsible=TRUE,
+  tabPanel(title = "Price trends",
+         sidebarLayout(
+           sidebarPanel(width = 3,
+                        selectInput("T2Var0", "Select Commodity Group", choices = commod_names), 
+                        selectInput("T2Var1", "Select Commodity",choices=""),
+                        selectInput("T2Var2", "Select Admininstative level", choices = ""),
+                        selectInput("T2Var3", "Select Specific Unit", choices = ""),
+                        selectInput("T2Var4", "Show subsequent sub-units?",
+                                    choices = list("Yes" = "w_sub","No" = "wo_sub"),selected = "wo_sub"),
+                        uiOutput("condition_T2Var4"),  #only show if yes
+                        sliderInput("T2Var5", "Select Date Range:",
+                                    min = as.Date("2012-01-01","%Y-%m-%d"),
+                                    max = as.Date("2021-12-01","%Y-%m-%d"),
+                                    value= c(as.Date("2015-01-01","%Y-%m-%d"),as.Date("2019-01-01","%Y-%m-%d")),
+                                    timeFormat="%Y-%m-%d")
+           ),
+           mainPanel(
+             tabsetPanel(
+               tabPanel("Plot",
+                        plotOutput("Priceplot"),leafletOutput("PriceMap")
+               )
+             )
+           )
+         )
+),
+
+
+
+
+server <- function(input, output, session) {
+
+
+#T2 reactive UI:
+selectedvariable0 <- reactive({
+  df[[grep(input$T2Var0,commod_names)]] #dataframe
+})
+#Update commodity
+observeEvent(selectedvariable0(), {#Update Commodity dropdown
+  choices <- unique(selectedvariable0()$Commodity)
+  updateSelectInput(inputId = "T2Var1", choices = choices) 
+})
+
+selectedvariable1 <- reactive({
+  req(input$T2Var0)
+  filter(selectedvariable0(), Commodity == input$T2Var1)
+})
+#Update Admin level
+observeEvent(selectedvariable1(), {#Update Admin_level dropdown
+  choices <- unique(selectedvariable1()$Admin_level)
+  updateSelectInput(inputId = "T2Var2", choices = choices)
+})
+
+selectedvariable2 <- reactive({
+  req(input$T2Var1)
+  filter(selectedvariable1(), Admin_level == input$T2Var2)
+})
+#Update Region/Province
+observeEvent(selectedvariable2(), { #Update specific province/Region
+  choices <- unique(selectedvariable2()$Region.Province)
+  updateSelectInput(inputId = "T2Var3", choices = choices)
+})
+
+
+# renderUI for conditional checkbox subUnits
+output$condition_T2Var4 <- renderUI({
+  if(input$T2Var4=="w_sub"){
+    checkboxInput("show_subUnits", "Plot sub-units?", FALSE)
+  }
+}) 
+
+selectedvariable3 <- reactive({
+  req(input$T2Var2)
+  filter(selectedvariable2(), Region.Province == input$T2Var3)
+})
+#Update Date
+observeEvent(selectedvariable3(), {
+  choices <- unique(selectedvariable3()$Date)
+  updateSliderInput(inputId = "T2Var5", min = min(choices), max = max(choices))
+})
+
+
+#T2 DATA WRANGLING:
+#1.NON-spatial:
+dfsub <- reactive({
+  dfsub <- df[[grep(input$T2Var0,commod_names)]] %>%
+    dplyr::filter(Commodity == input$T2Var1 & Date >= input$T2Var5[1] & Date <= input$T2Var5[2])
+  
+  if(input$T2Var2 == "Region"){
+    reg.prov <- ph_adm %>% 
+      filter(ADM1_EN == word(input$T2Var3,1,2))%>%
+      select(ADM2_EN) %>%
+      unlist %>%
+      append(input$T2Var3)
+    dfsub %>%
+      filter(Region.Province == reg.prov)
+  }else if(input$T2Var2 == "Country"){
+    coun.reg <- ph_adm %>%
+      filter(ADM0_EN == word(input$T2Var3,1,2)) %>%
+      select(ADM1_EN) %>%
+      unlist %>%
+      append(input$T2Var3)
+    dfsub %>% 
+      filter(Region.Province == coun.reg)
+  }else if(input$T2Var2 == "Province"){
+    dfsub %>%
+      filter(Region.Province == input$T2Var3)
+  }
+  
+})
+# #2.Spatial (sf objects)
+geom_sub <-reactive({
+  if(input$T2Var2 == "Region"){
+    ph_geom %>% filter(ADM1_EN == input$T2Var3)
+  }else if(input$T2Var2 == "Province"){
+    ph_geom %>% filter(ADM2_EN == input$T2Var3)
+  }else{
+    ph_geom
+  }
+  
+})
+
+#Centroid for zooming purposes
+centr <- reactive ({
+  g <-  geom_sub()
+  g %>% st_union() %>%st_centroid %>% unlist
+})
+
+#T2 PLOTS:
+#Time series
+output$Priceplot <- renderPlot({
+  toplot<-dfsub()
+  
+  if(input$T2Var2 == "Province"){ # province and not subunits plot
+    p <- ggplot(toplot, aes(x = Date,y = Price)) +
+      geom_line() +
+      geom_point() +
+      scale_x_date(limits = input$DateRange,labels = date_format("%b-%Y")) +
+      labs(x = "Date", y = "Suggested Retail Price (SRP) in PhP",
+           title=paste(input$T2Var1,input$T2Var3, sep = " - ")) +
+      theme_bw()
+    
+  }else{
+    p <- ggplot(toplot, aes(x = Date,y = Price,group = Region.Province)) +
+      geom_line() +
+      geom_point() +
+      scale_x_date(limits = input$DateRange,labels = date_format("%b-%Y")) +
+      labs(x = "Date", y = "Suggested Retail Price (SRP) in PhP",
+           title=paste(input$T2Var1,input$T2Var3, sep = " - ")) +
+      theme_bw()
+  }
+  p
+})
+
+#Interactive map
+output$PriceMap <-renderLeaflet({
+  cn <-centr()
+  poly <- geom_sub()
+  
+  m <- leaflet() %>%
+    addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
+    setView(lng = cn[[1]], lat = cn[[2]], zoom = 5)%>%
+    addPolygons(data = poly, weight=1)
+  m
+  
+})
+
+
+
+}
+
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
+
+

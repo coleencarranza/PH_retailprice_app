@@ -1,0 +1,58 @@
+library(shiny)
+library(datasets)
+
+
+DT<-rbind(data.table(LP=rep("with.LP",3),Total=seq(6,8)+seq(1,3)/2,Life=seq(1,3)/2),
+          data.table(LP=rep("wo.LP",3),Total=seq(6,8),Life=0))
+
+Cols<-c("Total")
+server<-shinyServer(function(input, output) {
+  
+  # renderUI for conditional checkbox in UI for separately
+  output$conditionalInput<-    renderUI({
+    if(input$life.pension=="with.LP"){
+      checkboxInput("show.LP", "Show separately", FALSE)
+    }
+  }) 
+  #Condition if input$show.lp == TRUE
+  cond.cols<- reactive({
+    if(!is.null(input$show.LP)){
+      if(input$show.LP==TRUE & input$life.pension=="with.LP") {
+        c(Cols,"Life")
+      }else{
+        Cols
+      }}else{
+        Cols
+      }
+  })
+  
+  
+  # calculate table
+  output$view <- renderTable({
+    head(DT[LP==input$life.pension,.SD,.SDcols=Cols])
+  })
+})
+
+# Define UI for dataset viewer application
+ui<-shinyUI(fluidPage(
+  
+  # Application title
+  titlePanel("Shiny Example"),
+  # Sidebar with controls to select a dataset and specify the
+  # number of observations to view
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("life.pension", label = h3("Include L&P?"),
+                  choices = list("Yes" = "with.LP", "No" = "wo.LP")
+                  ,selected = "with.LP"),
+      uiOutput("conditionalInput")
+    ),
+    
+    # Show a summary of the dataset and an HTML table with the 
+    # requested number of observations
+    mainPanel(
+      tableOutput("view")
+    )
+  )
+))
+runApp(list(ui=ui,server=server))

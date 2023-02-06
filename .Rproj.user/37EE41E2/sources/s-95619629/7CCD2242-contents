@@ -1,0 +1,109 @@
+# Packages
+library(rgdal)
+library(shiny)
+library(leaflet)
+library(leaflet.providers)
+library(ggplot2)
+library(shinythemes)
+library(sf)
+library(lubridate)
+library(dplyr)
+
+
+# get AOI
+download.file(
+  "https://github.com/Leprechault/trash/raw/main/stands_example.zip",
+  zip_path <- tempfile(fileext = ".zip")
+)
+unzip(zip_path, exdir = tempdir())
+
+# Open the files
+setwd(tempdir())
+stands_extent <- readOGR(".", "stands_target") # Border
+stands_ds <- read.csv("pred_target_stands.csv", sep=";") # Data set
+stands_ds <- stands_ds %>%
+  mutate(DATA_S2 = ymd(DATA_S2))
+
+# Create the shiny dash
+ui <- fluidPage(
+  theme = shinytheme("cosmo"),
+  titlePanel(title="My Map Dashboard"),  
+  sidebarLayout(
+    sidebarPanel(
+      selectInput(inputId = "selectedvariable0", "Type", choices = unique(stands_ds$PEST), selected = TRUE),
+      selectInput(inputId = "selectedvariable1", "Date", choices = NULL),
+      selectInput(inputId = "selectedvariable2", "Project",choices = NULL),
+      selectInput(inputId = "selectedvariable3",
+                  label = "Stand", 
+                  choices = c(unique(stands_ds$CD_TALHAO)),selected = TRUE),
+      selectInput(inputId = "selectedvariable4",
+                  label = "Unique ID",                   
+                  choices = c(unique(stands_ds$ID_UNIQUE)),selected = TRUE)     
+    ),
+    mainPanel(
+      textOutput("idSaida"),
+      fluidRow(
+        splitLayout(plotOutput("myplot"))),
+      dateInput(inputId = "Dates selection", label = "Time"),
+      leafletOutput("map") 
+    )
+  )
+)
+
+server <- function(input, output, session){
+  
+  currentvariable3 <- reactive({input$selectedvariable3})
+  currentvariable4 <- reactive({input$selectedvariable4})  
+  
+  selectedvariable0 <- reactive({
+    filter(stands_ds, PEST == input$selectedvariable0)
+  })
+  observeEvent(selectedvariable0(), {
+    choices <- unique(selectedvariable0()$DATA_S2)
+    updateSelectInput(inputId = "selectedvariable1", choices = choices) 
+  })
+  
+  selectedvariable1 <- reactive({
+    req(input$selectedvariable1)
+    filter(selectedvariable0(), DATA_S2 == as.Date(input$selectedvariable1))
+  })
+  observeEvent(selectedvariable1(), {
+    choices <- unique(selectedvariable1()$PROJETO)
+    updateSelectInput(inputId = "selectedvariable2", choices = choices)
+  })
+  
+  output$myplot <- renderPlot({
+    
+    #Subset stand
+    stands_sel <- subset(stands_extent, stands_extent@data$ID_UNIQUE==currentvariable4())
+    
+    #Subset for input$var and assign this subset to new object, "fbar"
+    ds_sel<- stands_ds[stands_ds$ID_UNIQUE==currentvariable4(),]
+    
+    #Create a map
+    polys <- st_as_sf(stands_sel)
+    ggplot() +
+      geom_sf(data=polys) +
+      geom_point(data=ds_sel,
+                 aes(x=X, y=Y), color="red") +
+      xlab("Longitude") + ylab("Latitude") +
+      coord_sf() +
+      theme_bw() +
+      theme(text = element_text(size=10)) 
+  })
+  
+  output$map <- renderLeaflet({
+    
+    stands_actual<-stands_ds[stands_ds$ID_UNIQUE==currentvariable4(),]
+    lng <- mean(stands_actual$X)
+    lat <- mean(stands_actual$Y)
+    
+    leaflet() %>%
+      setView(lng = lng, lat = lat, zoom=17) %>%
+      addProviderTiles(providers$Esri.WorldImagery) %>%                   
+      addMarkers(lng=stands_actual$X, lat=stands_actual$Y, popup="Location")
+    
+  })   
+}
+shinyApp(ui, server)
+##

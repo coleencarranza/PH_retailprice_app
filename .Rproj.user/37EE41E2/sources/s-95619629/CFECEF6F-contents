@@ -1,0 +1,77 @@
+library(shiny)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+
+## Read retail price data script:
+
+source("./retail_prices_data.R")
+
+
+
+# Define UI:
+ui <- fluidPage(
+  
+  # Application title
+  titlePanel("Retail Prices of Commodities in the Philippines"),
+  p("Data source: "),
+  tags$ul(
+    tags$li("Philippine Statistics Authority (PSA).",
+            tags$a("OpenSTAT Database", href="https://openstat.psa.gov.ph/")
+    )
+  ),
+  tags$br(),
+  tags$hr(),
+  
+  #Layout with sidebar
+  sidebarLayout(
+   #1 sidebar area:
+    sidebarPanel(selectInput("commod", "Dataset",
+                             choices = c("list_a" = 1, "list_b" = 2, "list_c" = 3))
+            selectInput(inputId = "sex", 
+                        label = "Sex:",
+                        choices = list(Female = "F",
+                                       Male = "M")),
+            sliderInput(inputId = "year",
+                        label = "Year Range:",
+                        min = min(babynames$year),
+                        max = max(babynames$year),
+                        value = c(min(babynames$year),
+                                  max(babynames$year)),
+                        sep = ""),
+            plotOutput(outputId = "nameplot")
+  )
+  # Sidebar with a slider input for depth axis
+    sidebarLayout(
+      sidebarPanel(
+        sliderInput("depth",
+                    "Depth:",
+                    min = 1,
+                    max = 500,
+                    value = c(1, 100))
+      ),
+      # Show a plot of the generated distribution
+      mainPanel(
+        plotOutput("depthPlot")
+      )
+    ),
+    
+    tags$hr(),
+    
+    # Sidebar with a select inputs to choose variables to plot
+    sidebarLayout(
+      sidebarPanel(
+        selectInput("x_variable", "X Variable", cols, selected = "CTD_Salinity"),
+        selectInput("y_variable", "Y Variable", cols, selected = "d18O"),
+        selectInput("color_variable", "Color", cols, selected = "P")
+      ),
+      
+      # Show a plot with configurable axes
+      mainPanel(
+        plotOutput("varPlot")
+      )
+    ),
+    tags$hr()
+  )
+
