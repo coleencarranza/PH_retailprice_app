@@ -1,105 +1,3 @@
-library(shiny)
-library(ggplot2)
-library(scales)
-library(DT)
-library(dplyr)
-library(leaflet)
-library(sf)
-library(magrittr)
-library(geojsonio)
-library(htmltools)
-library(htmlwidgets)
-library(stringi)
-library(RColorBrewer)
-
-# Read retail price data script:
-source("./retail_prices_data.R")
-
-
-# Create UI
-ui <- navbarPage(
-  title = "Commodity Retail Prices Pilipinas",
-  collapsible=TRUE,
-  
-  #-----------TAB1:---------------- #label; variables depending on which tab they appear
-  tabPanel(title = "Statistics",
-           fluidPage(
-             sidebarLayout(
-             sidebarPanel(width=2,
-                          selectInput('T1_Regio_Natio', 'Select Administative level', 
-                                      choices = list("Subregional" = "subreg", "Subnational" = "subnat"), selected = "subnat"),
-                          uiOutput("T1_regio_select"),  #show regions list
-                          checkboxGroupInput("T1_CommGrp","Choose commodity  Group(s):", commod_names, selected = "BeansLegumes"),
-                          actionLink("selectall","Select All"),
-                          sliderInput("T1Date", "Select Date Range:",
-                                      min = as.Date("2012-01-01","%Y-%m-%d"),
-                                      max = as.Date("2021-12-01","%Y-%m-%d"),
-                                      value= c(as.Date("2015-01-01","%Y-%m-%d"),as.Date("2019-01-01","%Y-%m-%d")),
-                                      timeFormat="%Y-%m-%d")
-                          ),
-             mainPanel(width =10,
-               tabsetPanel(
-                 tabPanel("Plot",
-                          fluidRow(
-                            column(6,plotOutput("Pricebar_high")),
-                            column(6,plotOutput("Pricebar_low"))
-                          ),
-                          br(),
-                          br(),
-                          fluidRow(
-                            column(6,plotOutput("Pricebar_volat")),
-                            column(6,plotOutput("Pricebar_stabi"))
-                          ),
-                          br(),
-                          fluidRow(
-                            column(6,plotOutput("Pricebar_diffhigh")),
-                            column(6,plotOutput("Pricebar_difflow"))
-                          ),
-                          br(),
-                          DT::dataTableOutput("text")
-                 )
-               )
-             )
-             )
-           )
-           ),
-  #-------------TAB2:----------------
-  tabPanel(title = "Price trends",
-           sidebarLayout(
-             sidebarPanel(width = 3,
-                          selectInput("T2Var0", "Select Commodity Group", choices = commod_names), 
-                          selectInput("T2Var1", "Select Commodity",choices=""),
-                          selectInput("T2Var2", "Select Admininstative level", choices = ""),
-                          selectInput("T2Var3", "Select Specific Unit", choices = ""),
-                          selectInput("T2Var4", "Show subsequent sub-units?",
-                                      choices = list("Yes" = "w_sub","No" = "wo_sub"),selected = "wo_sub"),
-                          uiOutput("condition_T2Var4"),  #only show if yes
-                          sliderInput("T2Var5", "Select Date Range:",
-                                      min = as.Date("2012-01-01","%Y-%m-%d"),
-                                      max = as.Date("2021-12-01","%Y-%m-%d"),
-                                      value= c(as.Date("2015-01-01","%Y-%m-%d"),as.Date("2019-01-01","%Y-%m-%d")),
-                                      timeFormat="%Y-%m-%d")
-             ),
-             mainPanel(
-               tabsetPanel(
-                 tabPanel("Plot",
-                          plotOutput("Priceplot"),leafletOutput("PriceMap")
-                 )
-               )
-             )
-           )
-  ),
-  
-  
-  #---------------------TAB3:-----------
-  tabPanel(title = "Data table","content 3"),
-  #----------------TAB4:------------------
-  tabPanel(title = "About","content 3")
-)
-
-
-
-
 # Define server logic 
 server <- function(input, output, session) {
   #================--------TAB 1----------=================
@@ -118,17 +16,17 @@ server <- function(input, output, session) {
   output$T1_regio_select <- renderUI({
     if(input$T1_Regio_Natio == "subreg"){
       selectInput("regio_list", "Select region:", regions, selected = "Region I")}
-    })
+  })
   
   #T1 DATA WRANGLING:
- #select provinces  sub national or subregional depends on input
+  #select provinces  sub national or subregional depends on input
   t1prov_sub <- reactive({  #vector of provinces
     if(input$T1_Regio_Natio=="subreg"){
       prov <- subset(ph_adm,  ADM1_EN %in% input$regio_list) %>% select(ADM2_EN) %>% unlist()
     }else{
       prov <- ph_adm$ADM2_EN
     }
-    })
+  })
   
   #Price summarize based on  dynamic inputs:
   price_dfsub <- reactive({
@@ -136,7 +34,7 @@ server <- function(input, output, session) {
     #function
     per_commod_summ<-function(x){
       x %>%
-      dplyr::filter(Date >= input$T1Date[1] & Date <= input$T1Date[2]) %>%
+        dplyr::filter(Date >= input$T1Date[1] & Date <= input$T1Date[2]) %>%
         dplyr::filter(Admin_level == "Province") %>%
         dplyr::filter(Region.Province %in% provs) %>%
         group_by(Commodity, .drop = FALSE) %>%
@@ -171,16 +69,16 @@ server <- function(input, output, session) {
       drop_na(Price_average)
   })
   
-
   
-    #----------Horizontal bar plots------to improve! create for loop!------------
+  
+  #----------Horizontal bar plots------to improve! create for loop!------------
   #most expensive
   output$Pricebar_high <- renderPlot({
     bars <- price_dfsub() %>%
       top_n(n = 7, wt = Price_average)
     
     p <- ggplot(bars, aes(x = reorder(Commodity,Price_average), y = Price_average,
-                     fill= reorder(Commodity,Price_average))) +
+                          fill= reorder(Commodity,Price_average))) +
       geom_bar(stat = "identity", width = 0.75) +
       scale_fill_brewer(palette = "RdPu") +
       labs(y = "Average suggested retail price (SRP) in PhP", x = "Commodity",
@@ -190,15 +88,15 @@ server <- function(input, output, session) {
     
     p + theme(legend.position="none")
     
-     
+    
   })
   #cheapest:
   output$Pricebar_low <- renderPlot({
     bars <- price_dfsub() %>%
-        top_n(n = -7, wt = Price_average)
+      top_n(n = -7, wt = Price_average)
     
     p <- ggplot(bars, aes(x = reorder(Commodity,Price_average,decreasing=T), y = Price_average,
-                     fill= reorder(Commodity,Price_average,decreasing=T))) +
+                          fill= reorder(Commodity,Price_average,decreasing=T))) +
       geom_bar(stat = "identity", width = 0.75) +
       scale_fill_brewer(palette = "Greens") +
       labs(y = "Average suggested retail price (SRP) in PhP", x = "Commodity",
@@ -246,7 +144,7 @@ server <- function(input, output, session) {
       top_n(n = 7, wt = Price_diff)
     
     p <- ggplot(bars, aes(x = reorder(Commodity,Price_diff), y = Price_diff,
-                     fill = reorder(Commodity,Price_diff))) +
+                          fill = reorder(Commodity,Price_diff))) +
       geom_bar(stat = "identity", width = 0.75)+
       scale_fill_brewer(palette = "Purples") +
       labs(y = "in PhP", x = "Commodity",
@@ -263,7 +161,7 @@ server <- function(input, output, session) {
       top_n(n = -7,wt = Price_diff)
     
     p <- ggplot(bars, aes(x = reorder(Commodity,Price_diff,decreasing=T), y =Price_diff,
-                     fill = reorder(Commodity,Price_diff,decreasing=T))) +
+                          fill = reorder(Commodity,Price_diff,decreasing=T))) +
       geom_bar(stat = "identity", width = 0.75)+
       scale_fill_brewer(palette = "GnBu") +
       labs(y = "in PhP", x = "Commodity",
@@ -273,11 +171,11 @@ server <- function(input, output, session) {
     
     p + theme(legend.position="none")
   })
-
+  
   #table 
   output$text <- DT::renderDataTable(price_dfsub())
   # output$text <-renderText(t1prov_sub())
-
+  
   #===============--------TAB 2----------================
   #T2 reactive UI:
   selectedvariable0 <- reactive({
@@ -309,18 +207,11 @@ server <- function(input, output, session) {
     updateSelectInput(inputId = "T2Var3", choices = choices)
   })
   
-  
-  # renderUI for conditional checkbox subUnits
-  output$condition_T2Var4 <- renderUI({
-    if(input$T2Var4=="w_sub"){
-      checkboxInput("show_subUnits", "Plot sub-units?", FALSE)
-    }
-  }) 
-  
-  selectedvariable3 <- reactive({
+ selectedvariable3 <- reactive({
     req(input$T2Var2)
     filter(selectedvariable2(), Region.Province == input$T2Var3)
   })
+ 
   #Update Date
   observeEvent(selectedvariable3(), {
     choices <- unique(selectedvariable3()$Date)
@@ -330,36 +221,49 @@ server <- function(input, output, session) {
   
   #T2 DATA WRANGLING:
   #1.NON-spatial:
+  #subU based on checkbox
+  subU <-reactive({
+    if(input$T2Var4 == TRUE){
+      if(input$T2Var2 == "Region"){
+        subU <- ph_adm %>% 
+          filter(word(ADM1_EN,1,2) == word(input$T2Var3,1,2))%>%
+          select(ADM2_EN) %>%
+          pull()
+      }else if(input$T2Var2 == "Country"){
+        subU <- ph_adm %>%
+          filter(ADM0_EN == input$T2Var3) %>%
+          distinct(ADM1_EN) %>%
+          pull
+      } else if(input$T2Var2 == "Province"){
+        subU <-vector()
+      }
+    }else{
+      subU <- vector()
+    }
+  })  
+
+  
   dfsub <- reactive({
     dfsub <- df[[grep(input$T2Var0,commod_names)]] %>%
       dplyr::filter(Commodity == input$T2Var1 & Date >= input$T2Var5[1] & Date <= input$T2Var5[2])
+    subU <-subU()
     
     if(input$T2Var2 == "Region"){
-      reg.prov <- ph_adm %>% 
-        filter(ADM1_EN == word(input$T2Var3,1,2))%>%
-        select(ADM2_EN) %>%
-        unlist %>%
-        append(input$T2Var3)
-      dfsub %>%
-        filter(Region.Province == reg.prov)
-    }else if(input$T2Var2 == "Country"){
-      coun.reg <- ph_adm %>%
-        filter(ADM0_EN == word(input$T2Var3,1,2)) %>%
-        select(ADM1_EN) %>%
-        unlist %>%
-        append(input$T2Var3)
-      dfsub %>% 
-        filter(Region.Province == coun.reg)
-    }else if(input$T2Var2 == "Province"){
-      dfsub %>%
-        filter(Region.Province == input$T2Var3)
-    }
-    
-  })
+      dfsub %>% filter(word(Region.Province,1,2) == word(input$T2Var3,1,2) | Region.Province %in% subU)
+      
+      }else if(input$T2Var2 == "Country"){
+      subU <- subU %>% append(input$T2Var3)
+      dfsub %>% filter(grepl(paste0(subU,collapse="|"),Region.Province))
+      
+      }else if(input$T2Var2 == "Province"){
+      dfsub %>% filter(Region.Province == input$T2Var3)
+        }
+    })
+  
   # #2.Spatial (sf objects)
   geom_sub <-reactive({
     if(input$T2Var2 == "Region"){
-      ph_geom %>%  filter(ADM1_EN == word(input$T2Var3,1,2))
+      ph_geom %>% filter(ADM1_EN == word(input$T2Var3,1,2))
     }else if(input$T2Var2 == "Province"){
       ph_geom %>% filter(ADM2_EN == word(input$T2Var3,1,2))
     }else{
@@ -367,13 +271,13 @@ server <- function(input, output, session) {
     }
     
   })
-
+  
   #Centroid for zooming purposes
   centr <- reactive ({
     g <-  geom_sub()
     g %>% st_union() %>%st_centroid %>% unlist
   })
-
+  
   #T2 PLOTS:
   #Time series
   output$Priceplot <- renderPlot({
@@ -387,7 +291,7 @@ server <- function(input, output, session) {
         labs(x = "Date", y = "Suggested Retail Price (SRP) in PhP",
              title=paste(input$T2Var1,input$T2Var3, sep = " - ")) +
         theme_bw()
-       
+      
     }else{
       p <- ggplot(toplot, aes(x = Date,y = Price,group = Region.Province)) +
         geom_line() +
@@ -399,28 +303,20 @@ server <- function(input, output, session) {
     }
     p
   })
-
-    #Interactive map
-    output$PriceMap <-renderLeaflet({
-      cn <-centr()
-      poly <- geom_sub()
-
-      m <- leaflet() %>%
-      addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
-      setView(lng = cn[[1]], lat = cn[[2]], zoom = 5)%>%
-      addPolygons(data = poly, weight=1)
-      m
-
-  })
-
+  
+  # #Interactive map
+  # output$PriceMap <-renderLeaflet({
+  #   cn <-centr()
+  #   poly <- geom_sub()
+  #   
+  #   m <- leaflet() %>%
+  #     addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
+  #     setView(lng = cn[[1]], lat = cn[[2]], zoom = 5)%>%
+  #     addPolygons(data = poly, weight=1)
+  #   m
+  #   
+  # })
+  
   
   
 }
-
-# Run the application 
-shinyApp(ui = ui, server = server)
-
-
-
-
-
