@@ -218,6 +218,12 @@ server <- function(input, output, session) {
     updateSliderInput(inputId = "T2Var5", min = min(choices), max = max(choices))
   })
   
+  # renderUI for conditional checkbox subUnits
+  output$condition_T2Var4 <- renderUI({
+    if(input$T2Var2 != "Province"){
+      checkboxInput("T2Var4", "Show subsequent sub-units?", value = FALSE)
+    }
+  }) 
   
   #T2 DATA WRANGLING:
   #1.NON-spatial:
@@ -253,7 +259,7 @@ server <- function(input, output, session) {
       
       }else if(input$T2Var2 == "Country"){
       subU <- subU %>% append(input$T2Var3)
-      dfsub %>% filter(grepl(paste0(subU,collapse="|"),Region.Province))
+      dfsub %>% filter(grepl(paste0(subU,collapse="|"), Region.Province))
       
       }else if(input$T2Var2 == "Province"){
       dfsub %>% filter(Region.Province == input$T2Var3)
@@ -281,28 +287,28 @@ server <- function(input, output, session) {
   #T2 PLOTS:
   #Time series
   output$Priceplot <- renderPlot({
-    toplot<-dfsub()
+    subUn <-subU()
+    toplot1 <- dfsub() %>%
+      dplyr::filter(Region.Province %in% input$T2Var3)
     
-    if(input$T2Var2 == "Province"){ # province and not subunits plot
-      p <- ggplot(toplot, aes(x = Date,y = Price)) +
-        geom_line() +
-        geom_point() +
-        scale_x_date(limits = input$DateRange,labels = date_format("%b-%Y")) +
-        labs(x = "Date", y = "Suggested Retail Price (SRP) in PhP",
+    toplot2 <- dfsub() %>%
+      dplyr::filter(!Region.Province %in% input$T2Var3)
+    
+    p <- toplot2 %>%
+      ggplot(aes(x = Date,y = Price, color = Region.Province)) +
+      geom_line(size =0.6, alpha = 0.7) +
+     # geom_point() +
+      scale_x_date(limits = input$DateRange,labels = date_format("%b-%Y")) +
+      labs(x = "Date", y = "Suggested Retail Price (SRP) in PhP",
              title=paste(input$T2Var1,input$T2Var3, sep = " - ")) +
-        theme_bw()
-      
-    }else{
-      p <- ggplot(toplot, aes(x = Date,y = Price,group = Region.Province)) +
-        geom_line() +
-        geom_point() +
-        scale_x_date(limits = input$DateRange,labels = date_format("%b-%Y")) +
-        labs(x = "Date", y = "Suggested Retail Price (SRP) in PhP",
-             title=paste(input$T2Var1,input$T2Var3, sep = " - ")) +
-        theme_bw()
-    }
-    p
-  })
+      #main plot line
+      geom_line(data = toplot1, aes(x = Date,y = Price,color  = Region.Province), color = "black",size =0.5) +
+      geom_point(data = toplot1, aes(x = Date,y = Price,color  = Region.Province), color = "black",size = 2) + 
+      theme_minimal(base_size = 17)
+    
+    p + theme(legend.position = 'bottom')
+   },
+   height=800)
   
   # #Interactive map
   # output$PriceMap <-renderLeaflet({

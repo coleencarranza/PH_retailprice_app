@@ -53,7 +53,7 @@ ui <- navbarPage(
                           selectInput("T2Var1", "Select Commodity",choices=""),
                           selectInput("T2Var2", "Select Admininstative level", choices = "Province"),
                           selectInput("T2Var3", "Select Specific Unit", choices = "Abra"),
-                          checkboxInput("T2Var4", "Show subsequent sub-units?", value = FALSE),
+                          uiOutput("condition_T2Var4"),  #only show if yes
                           sliderInput("T2Var5", "Select Date Range:",
                                       min = as.Date("2012-01-01","%Y-%m-%d"),
                                       max = as.Date("2021-12-01","%Y-%m-%d"),
@@ -69,6 +69,7 @@ ui <- navbarPage(
              )
            )
   ),
+  
   
   
   #---------------------TAB3:-----------
