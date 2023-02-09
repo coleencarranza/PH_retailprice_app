@@ -317,14 +317,13 @@ server <- function(input, output, session) {
     cn <-centr()
     poly <- geom_sub()
 
-    m <- leaflet() %>%
-      addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
+    m <- leaflet(data = poly) %>%
+      addTiles() %>% 
       setView(lng = cn[[1]], lat = cn[[2]], zoom = 5)%>%
-      addPolygons(data = poly, weight=1)
+      addPolygons(weight=1)
     m
 
   })
-  
   
   
 }
