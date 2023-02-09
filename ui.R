@@ -48,7 +48,7 @@ ui <- navbarPage(
   #-------------TAB2:----------------
   tabPanel(title = "Price trends",
            sidebarLayout(
-             sidebarPanel(width = 3,
+             sidebarPanel(width = 2,
                           selectInput("T2Var0", "Select Commodity Group", choices = commod_names), 
                           selectInput("T2Var1", "Select Commodity",choices=""),
                           selectInput("T2Var2", "Select Admininstative level", choices = "Province"),
@@ -60,11 +60,14 @@ ui <- navbarPage(
                                       value= c(as.Date("2015-01-01","%Y-%m-%d"),as.Date("2019-01-01","%Y-%m-%d")),
                                       timeFormat="%Y-%m-%d")
              ),
-             mainPanel(
+             mainPanel(width=10,
                tabsetPanel(
                  tabPanel("Plot",
-                          plotOutput("Priceplot"),leafletOutput("PriceMap")
-                 )
+                          fluidRow(plotOutput("Priceplot")),
+                          ),
+                 tabPanel("Map",
+                          fluidRow(leafletOutput("PriceMap"))
+                          )
                )
              )
            )

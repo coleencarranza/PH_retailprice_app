@@ -268,11 +268,13 @@ server <- function(input, output, session) {
   
   # #2.Spatial (sf objects)
   geom_sub <-reactive({
+    subU<-subU()
+    
     if(input$T2Var2 == "Region"){
-      ph_geom %>% filter(ADM1_EN == word(input$T2Var3,1,2))
+      ph_geom %>% filter(ADM1_EN %in% subU)
     }else if(input$T2Var2 == "Province"){
-      ph_geom %>% filter(ADM2_EN == word(input$T2Var3,1,2))
-    }else{
+      ph_geom %>% filter(ADM2_EN == input$T2Var3)
+    }else if(input$T2Var2 == "Country") {
       ph_geom
     }
     
@@ -306,22 +308,22 @@ server <- function(input, output, session) {
       geom_point(data = toplot1, aes(x = Date,y = Price,color  = Region.Province), color = "black",size = 2) + 
       theme_minimal(base_size = 17)
     
-    p + theme(legend.position = 'bottom')
+    p + theme(legend.position = 'bottom',legend.title = element_blank())
    },
    height=800)
   
-  # #Interactive map
-  # output$PriceMap <-renderLeaflet({
-  #   cn <-centr()
-  #   poly <- geom_sub()
-  #   
-  #   m <- leaflet() %>%
-  #     addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
-  #     setView(lng = cn[[1]], lat = cn[[2]], zoom = 5)%>%
-  #     addPolygons(data = poly, weight=1)
-  #   m
-  #   
-  # })
+  #Interactive map
+  output$PriceMap <-renderLeaflet({
+    cn <-centr()
+    poly <- geom_sub()
+
+    m <- leaflet() %>%
+      addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
+      setView(lng = cn[[1]], lat = cn[[2]], zoom = 5)%>%
+      addPolygons(data = poly, weight=1)
+    m
+
+  })
   
   
   
