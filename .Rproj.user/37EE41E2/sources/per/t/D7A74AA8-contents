@@ -88,6 +88,7 @@ server <- function(input, output, session) {
     
     p + theme(legend.position="none")
     
+    print(p)
   })
   #cheapest:
   output$Pricebar_low <- renderPlot({
@@ -311,16 +312,31 @@ server <- function(input, output, session) {
    height=800)
   
   #Interactive map
-  output$PriceMap <-renderLeaflet({
-    cn <-centr()
-    poly <- geom_sub()
-    
-    m <- leaflet() %>%
-      addProviderTiles(providers$CartoDB.PositronNoLabels)  %>%
-      setView(lng = cn[[1]], lat = cn[[2]], zoom =6)%>%
-      addPolygons(data = poly, weight=1)
-    m
-    
-  })
+  # output$PriceMap <-renderLeaflet({
+  #   cn <-centr()
+  #   poly <- geom_sub()
+  # 
+  #   m <- leaflet(data = poly) %>%
+  #     addTiles() %>%
+  #     setView(lng = cn[[1]], lat = cn[[2]], zoom = 6)%>%
+  #     addPolygons(weight=1)
+  #   m
+
+  # })
+  # output$PriceMap <- renderLeaflet({
+  #   # poly <- geom_sub()
+  # 
+  #   leaflet() %>%
+  #     addProviderTiles(providers$Stamen.TonerLite,
+  #                      options = providerTileOptions(noWrap = TRUE)) %>%
+  #     setView(lng = 122.5, lat = 12.5, zoom = 6)%>%
+  #     addPolygons(data = ph_geom(), weight=1)
+  # })
+  
+  # observeEvent (input$T2Var2, {
+  #   leafletProxy("PriceMap") %>%
+  #     clearShapes() %>%
+  #     addPolygons(data=geom_sub(),stroke = FALSE, smoothFactor = 0.2, fillOpacity = 1, popup = popup)
+  # })
   
 }

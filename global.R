@@ -70,6 +70,9 @@ ph_geom<-st_read("./data/adm/phl_admbnda_adm2_psa_namria_20200529.shp") %>%
   mutate(ADM1_EN = ifelse(grepl("Davao Occidental", ADM1_EN), "Davao de Oro", ADM1_EN))%>%
   rmapshaper::ms_simplify(keep = 0.01, keep_shapes = F)
 
+names(st_geometry(ph_geom)) = NULL
+
+
 #NO geometry
 ph_adm <- ph_geom %>%
   st_drop_geometry() 

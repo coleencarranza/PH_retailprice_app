@@ -65,10 +65,10 @@ ui <- navbarPage(
                  tabPanel("Plot",
                           fluidRow(plotOutput("Priceplot")),
                           )
-                 ,
-                 tabPanel("Map",
-                          fluidRow(leafletOutput("PriceMap",width="100%",height="800px"))
-                          )
+                 # ,
+                 # tabPanel("Map",
+                 #          fluidRow(leafletOutput("PriceMap"))
+                 #          )
                )
              )
            )
